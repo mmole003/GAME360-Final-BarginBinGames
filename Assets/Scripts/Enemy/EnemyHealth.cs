@@ -1,12 +1,10 @@
+
 using System.Collections;
 using UnityEngine;
 using UnityEngine.AI;
 
 public class EnemyHealth : MonoBehaviour
 {
-    [Header("Health")]
-    public int maxHealth = 100;
-
     [Header("Knockback")]
     public float knockbackForce = 3f;
     public float knockbackDuration = 0.15f;
@@ -16,6 +14,7 @@ public class EnemyHealth : MonoBehaviour
 
     private int currentHealth;
 
+    private EnemyData enemyData;
     private NavMeshAgent agent;
 
     private Renderer[] renderers;
@@ -25,15 +24,28 @@ public class EnemyHealth : MonoBehaviour
 
     void Start()
     {
-        currentHealth = maxHealth;
+        // Get enemy data from the Enemy component
+        Enemy enemy = GetComponent<Enemy>();
 
-        // Find NavMeshAgent if the enemy has one
+        if (enemy == null || enemy.enemyData == null)
+        {
+            Debug.LogError("EnemyHealth: Enemy or EnemyData is missing!", this);
+            enabled = false;
+            return;
+        }
+
+        enemyData = enemy.enemyData;
+
+        // Set health using the ScriptableObject
+        currentHealth = enemyData.maxHealth;
+
+        // Find NavMeshAgent
         agent = GetComponent<NavMeshAgent>();
 
         // Find all renderers on the enemy and its children
         renderers = GetComponentsInChildren<Renderer>();
 
-        // Store the original materials
+        // Store original materials
         originalMaterials = new Material[renderers.Length];
 
         for (int i = 0; i < renderers.Length; i++)
@@ -41,16 +53,19 @@ public class EnemyHealth : MonoBehaviour
             originalMaterials[i] = renderers[i].material;
         }
 
-        // Create a white material for the flash
+        // Create white flash material
         flashMaterial = new Material(Shader.Find("Universal Render Pipeline/Lit"));
         flashMaterial.color = Color.white;
     }
 
-        public void TakeDamage(int damage)
+    public void TakeDamage(int damage)
     {
+        if (currentHealth <= 0)
+            return;
+
         currentHealth -= damage;
 
-        Debug.Log("Enemy took " + damage + " damage!");
+        Debug.Log(enemyData.enemyName + " took " + damage + " damage! Remaining health: " + currentHealth);
 
         // Flash white
         StartCoroutine(FlashWhite());
@@ -66,7 +81,6 @@ public class EnemyHealth : MonoBehaviour
 
     IEnumerator FlashWhite()
     {
-        // Change every renderer to the white material
         for (int i = 0; i < renderers.Length; i++)
         {
             renderers[i].material = flashMaterial;
@@ -74,7 +88,6 @@ public class EnemyHealth : MonoBehaviour
 
         yield return new WaitForSeconds(flashDuration);
 
-        // Restore original materials
         for (int i = 0; i < renderers.Length; i++)
         {
             renderers[i].material = originalMaterials[i];
@@ -84,17 +97,20 @@ public class EnemyHealth : MonoBehaviour
     IEnumerator Knockback()
     {
         if (agent == null)
+            yield break;
+
+        agent.isStopped = true;
+
+        GameObject player = GameObject.FindGameObjectWithTag("Player");
+
+        if (player == null)
         {
+            agent.isStopped = false;
             yield break;
         }
 
-        // Stop the NavMeshAgent from controlling the enemy
-        agent.isStopped = true;
-
-        Vector3 direction = transform.position - GameObject.FindGameObjectWithTag("Player").transform.position;
-
+        Vector3 direction = transform.position - player.transform.position;
         direction.y = 0f;
-
         direction.Normalize();
 
         float elapsed = 0f;
@@ -103,9 +119,6 @@ public class EnemyHealth : MonoBehaviour
         {
             elapsed += Time.deltaTime;
 
-            float progress = elapsed / knockbackDuration;
-
-            // Smoothly move backwards
             transform.position += direction * knockbackForce * Time.deltaTime;
 
             yield return null;
@@ -116,7 +129,7 @@ public class EnemyHealth : MonoBehaviour
 
     void Die()
     {
-        Debug.Log("Enemy died!");
+        Debug.Log(enemyData.enemyName + " died!");
 
         Destroy(gameObject);
     }

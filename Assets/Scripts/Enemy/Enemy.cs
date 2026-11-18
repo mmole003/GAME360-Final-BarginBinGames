@@ -3,37 +3,46 @@ using UnityEngine.AI;
 
 public class Enemy : MonoBehaviour
 {
+    [Header("Enemy Data")]
+    public EnemyData enemyData;
 
     private StateMachine stateMachine;
     private NavMeshAgent agent;
     private GameObject player;
     private Vector3 lastKnowPos;
+
     public NavMeshAgent Agent { get => agent; }
     public GameObject Player { get => player; }
 
     public PatrolPath path;
+
     [Header("Sight Settings")]
-    public float sightDistance = 20f;
-    public float fieldOfView = 85f;
     public float eyeHeight;
 
-    public Vector3 LastKnownPlayerPosition { get => lastKnowPos; set => lastKnowPos = value; }
+    public Vector3 LastKnownPlayerPosition
+    {
+        get => lastKnowPos;
+        set => lastKnowPos = value;
+    }
 
-
-
-    //For debugging purposes
     [SerializeField]
     private string currentState;
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
+
     void Start()
     {
         stateMachine = GetComponent<StateMachine>();
         agent = GetComponent<NavMeshAgent>();
-        stateMachine.Initialise();
+
         player = GameObject.FindGameObjectWithTag("Player");
+
+        if (enemyData != null)
+        {
+            agent.speed = enemyData.movementSpeed;
+        }
+
+        stateMachine.Initialise();
     }
 
-    // Update is called once per frame
     void Update()
     {
         if (CanSeePlayer())
@@ -46,29 +55,30 @@ public class Enemy : MonoBehaviour
 
     public bool CanSeePlayer()
     {
-        //check if player is within sight distance
-        if (player != null)
+        if (player != null && enemyData != null)
         {
-            //is the player close enough to be seen?
-            if (Vector3.Distance(transform.position, player.transform.position) < sightDistance)
+            if (Vector3.Distance(transform.position, player.transform.position) < enemyData.sightDistance)
             {
                 Vector3 targetDirection = player.transform.position - transform.position - (Vector3.up * eyeHeight);
                 float angleToPlayer = Vector3.Angle(transform.forward, targetDirection);
-                if (angleToPlayer >= -fieldOfView && angleToPlayer <= fieldOfView)
+
+                if (angleToPlayer <= enemyData.fieldOfView)
                 {
                     Ray ray = new Ray(transform.position + (Vector3.up * eyeHeight), targetDirection);
-                    RaycastHit hitinfo = new RaycastHit();
-                    if (Physics.Raycast(ray, out hitinfo, sightDistance))
+
+                    if (Physics.Raycast(ray, out RaycastHit hitinfo, enemyData.sightDistance))
                     {
                         if (hitinfo.transform.gameObject == player)
                         {
                             return true;
                         }
                     }
-                    Debug.DrawRay(ray.origin, ray.direction * sightDistance);
+
+                    Debug.DrawRay(ray.origin, ray.direction * enemyData.sightDistance);
                 }
             }
         }
+
         return false;
     }
 }
