@@ -1,4 +1,4 @@
-game title, one line description, team members and roles, current status.
+
 The Primitive Chronicles
 Fantasy ARPG with party building.
 Team members - Madelyn Molen - Role: Lead Dev, Art Director, Coder
